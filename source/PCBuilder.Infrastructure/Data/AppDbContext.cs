@@ -20,8 +20,8 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Model).HasMaxLength(100);
             entity.Property(x => x.Price).HasPrecision(18, 2);
 
-            // Store all specifications as JSON column
-            entity.Property(x => x.Specs)
+            // Store all specifications as JSON string column
+            entity.Property(x => x.SpecsJson)
                 .HasColumnType("jsonb"); // Use "json" for SQL Server, "jsonb" for PostgreSQL
         });
     }

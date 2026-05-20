@@ -53,9 +53,9 @@ namespace PCBuilder.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("price");
 
-                    b.Property<Specifications>("Specs")
+                    b.Property<string>("SpecsJson")
                         .HasColumnType("jsonb")
-                        .HasColumnName("specs");
+                        .HasColumnName("specsjson");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer")

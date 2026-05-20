@@ -23,7 +23,7 @@ namespace PCBuilder.Infrastructure.Migrations
                     brand = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     model = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
-                    specs = table.Column<Specifications>(type: "jsonb", nullable: true)
+                    specsjson = table.Column<string>(type: "jsonb", nullable: true)
                 },
                 constraints: table =>
                 {

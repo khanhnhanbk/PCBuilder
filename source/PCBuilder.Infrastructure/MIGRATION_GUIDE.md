@@ -9,16 +9,16 @@ Hệ thống đã được refactor để lưu tất cả specifications dưới
 - Sử dụng `OwnsOne()` configuration trong EF Core
 
 ### Sau (New):
-- **1 JSON column** `Specs` trong bảng `Products`
-- Tất cả specifications được lưu trữ trong đối tượng `Specifications` duy nhất
+- **1 JSON column** `SpecsJson` trong bảng `Products` (string chứa JSON)
+- Lưu các specs bằng cách serialize các class typed (ví dụ `CpuSpec`, `GpuSpec`)
 - Giảm độ phức tạp của schema database
 
 ## Các file đã thay đổi
 
-1. **Product.cs** - Thay thế các property riêng bằng 1 property `Specs` duy nhất
-2. **AppDbContext.cs** - Cấu hình `jsonb` column thay vì `OwnsOne()`
-3. **Specifications.cs** - Class mới chứa tất cả specs (auto-generated)
-4. **SpecificationsBuilder.cs** - Helper class để build specs một cách fluent (tùy chọn)
+1. **Product.cs** - Thay thế các property riêng bằng `SpecsJson` string và helper `GetSpecs<T>()/SetSpecs<T>()`
+2. **AppDbContext.cs** - Cấu hình `jsonb` column cho `SpecsJson`
+3. **SpecificationsBuilder.cs** - (tùy chọn) có thể xóa nếu không dùng
+4. **ProductService.cs** - Ví dụ service để tạo product với typed spec
 
 ## Database Migration
 
@@ -44,27 +44,8 @@ dotnet ef database update -p source/PCBuilder.Infrastructure -s source/PCBuilder
 
 ### 1. Tạo Product với Specifications
 
-**Cách 1: Trực tiếp**
-```csharp
-var product = new Product
-{
-    Name = "Intel Core i9",
-    Brand = "Intel",
-    Type = ProductTypeEnum.CPU,
-    Price = 589.99m,
-    Specs = new Specifications
-    {
-        CpuCores = 24,
-        CpuThreads = 32,
-        CpuSocket = "LGA1700",
-        CpuBaseClockGhz = 3.2,
-        CpuBoostClockGhz = 5.7,
-        CpuTdpWatt = 253
-    }
-};
-```
+**Ví dụ lưu bằng `SpecsJson`**
 
-**Cách 2: Dùng Builder (Fluent)**
 ```csharp
 var product = new Product
 {
@@ -72,40 +53,49 @@ var product = new Product
     Brand = "Intel",
     Type = ProductTypeEnum.CPU,
     Price = 589.99m,
-    Specs = new SpecificationsBuilder()
-        .WithCpuSpec(
-            socket: "LGA1700",
-            cores: 24,
-            threads: 32,
-            baseClockGhz: 3.2,
-            boostClockGhz: 5.7,
-            tdpWatt: 253)
-        .Build()
 };
+
+// dùng strongly-typed spec class
+var cpuSpec = new CpuSpec
+{
+    Cores = 24,
+    Threads = 32,
+    Socket = "LGA1700",
+    BaseClockGhz = 3.2,
+    BoostClockGhz = 5.7,
+    TdpWatt = 253
+};
+
+product.SetSpecs(cpuSpec);
+
+context.Products.Add(product);
+await context.SaveChangesAsync();
 ```
 
 ### 2. Truy vấn Specifications trong LINQ
 
 ```csharp
-// Tìm tất cả CPU có >= 8 cores
+// Tìm tất cả CPU có >= 8 cores (client-side cast)
 var cpus = context.Products
-    .Where(p => p.Specs != null && p.Specs.CpuCores >= 8)
+    .AsEnumerable()
+    .Select(p => p.GetSpecs<CpuSpec>())
+    .Where(s => s != null && s.Cores >= 8)
     .ToList();
 
-// Tìm GPU với >= 8GB VRAM
-var gpus = context.Products
-    .Where(p => p.Specs != null && p.Specs.GpuVramGb >= 8)
-    .ToList();
+// Hoặc dùng JSON operators trong DB (PostgreSQL) để filter server-side
+// xem phần Database Query bên dưới
 ```
 
 ### 3. Cập nhật Specifications
 
 ```csharp
 var product = await context.Products.FindAsync(productId);
-if (product?.Specs != null)
+var cpu = product?.GetSpecs<CpuSpec>();
+if (product != null && cpu != null)
 {
-    product.Specs.CpuCores = 32;
-    product.Specs.CpuThreads = 64;
+    cpu.Cores = 32;
+    cpu.Threads = 64;
+    product.SetSpecs(cpu);
     await context.SaveChangesAsync();
 }
 ```
@@ -115,17 +105,17 @@ if (product?.Specs != null)
 Vì sử dụng `jsonb`, bạn có thể truy vấn JSON trực tiếp trong PostgreSQL:
 
 ```sql
--- Tìm tất cả products có CPU cores >= 8
+-- Tìm tất cả products có CPU cores >= 8 (PostgreSQL jsonb)
 SELECT * FROM "Products"
-WHERE "Specs"->'CpuCores' >= '8';
+WHERE ("SpecsJson"->>'Cores')::int >= 8;
 
 -- Tìm tất cả GPUs với VRAM >= 8GB
 SELECT * FROM "Products"
-WHERE "Specs"->'GpuVramGb' >= '8';
+WHERE ("SpecsJson"->>'VramGb')::int >= 8;
 
 -- Cập nhật CPU cores
 UPDATE "Products"
-SET "Specs" = jsonb_set("Specs", '{CpuCores}', '32')
+SET "SpecsJson" = jsonb_set("SpecsJson", '{Cores}', '32')
 WHERE "Id" = 1;
 ```
 
@@ -157,5 +147,4 @@ migrationBuilder.Sql(@"
 ## Ghi chú
 
 - Column type là `jsonb` cho PostgreSQL, `json` cho SQL Server
-- Specifications có default value là empty object
-- Các old spec tables có thể được xóa sau khi migration thành công
+ - Các old spec tables có thể được xóa sau khi migration thành công
