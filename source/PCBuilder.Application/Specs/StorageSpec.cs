@@ -1,4 +1,4 @@
-namespace PCBuilder.Domain;
+namespace PCBuilder.Application;
 
 public class StorageSpec
 {
