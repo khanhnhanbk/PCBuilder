@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using PCBuilder.Domain;
 using PCBuilder.Infrastructure.Data;
 
 #nullable disable
@@ -13,7 +12,7 @@ using PCBuilder.Infrastructure.Data;
 namespace PCBuilder.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260519115615_AddProductTable")]
+    [Migration("20260520011109_AddProductTable")]
     partial class AddProductTable
     {
         /// <inheritdoc />
@@ -57,8 +56,9 @@ namespace PCBuilder.Infrastructure.Migrations
                         .HasColumnName("price");
 
                     b.Property<string>("SpecsJson")
+                        .IsRequired()
                         .HasColumnType("jsonb")
-                        .HasColumnName("specsjson");
+                        .HasColumnName("specs");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer")
@@ -66,6 +66,9 @@ namespace PCBuilder.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_products");
+
+                    b.HasIndex("Type")
+                        .HasDatabaseName("ix_products_type");
 
                     b.ToTable("products", (string)null);
                 });

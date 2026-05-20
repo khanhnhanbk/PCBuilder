@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using PCBuilder.Domain;
 using PCBuilder.Infrastructure.Data;
 
 #nullable disable
@@ -54,8 +53,9 @@ namespace PCBuilder.Infrastructure.Migrations
                         .HasColumnName("price");
 
                     b.Property<string>("SpecsJson")
+                        .IsRequired()
                         .HasColumnType("jsonb")
-                        .HasColumnName("specsjson");
+                        .HasColumnName("specs");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer")
@@ -63,6 +63,9 @@ namespace PCBuilder.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_products");
+
+                    b.HasIndex("Type")
+                        .HasDatabaseName("ix_products_type");
 
                     b.ToTable("products", (string)null);
                 });

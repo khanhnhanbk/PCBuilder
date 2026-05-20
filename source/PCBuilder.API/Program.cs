@@ -1,7 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using PCBuilder.Application;
+using PCBuilder.Infrastructure;
 using PCBuilder.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddScoped<IProductService, ProductService>();
 
 builder.Services.AddControllers();
 

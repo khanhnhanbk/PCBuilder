@@ -1,12 +1,11 @@
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using PCBuilder.Application;
 using PCBuilder.Domain;
 using PCBuilder.Infrastructure.Data;
 
-namespace PCBuilder.Infrastructure.Services;
+namespace PCBuilder.Infrastructure;
 
-public class ProductService
+public class ProductService : IProductService
 {
     private readonly AppDbContext _db;
 
@@ -15,32 +14,65 @@ public class ProductService
         _db = db;
     }
 
-    public async Task<Product> CreateProductAsync(Product product, CancellationToken ct = default)
+    public async Task<List<Product>> GetAllAsync()
+    {
+        return await _db.Products
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
+    public async Task<Product?> GetByIdAsync(int id)
+    {
+        return await _db.Products
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id);
+    }
+
+    public async Task<Product> CreateAsync(Product product)
     {
         _db.Products.Add(product);
-        await _db.SaveChangesAsync(ct);
+
+        await _db.SaveChangesAsync();
+
         return product;
     }
 
-    public async Task<Product> CreateCpuProductAsync(string name, string? brand, decimal? price, CpuSpec cpuSpec, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(Product product)
     {
-        var product = new Product
+        var existing = await _db.Products
+            .FirstOrDefaultAsync(x => x.Id == product.Id);
+
+        if (existing is null)
         {
-            Name = name,
-            Brand = brand,
-            Price = price,
-            Type = ProductTypeEnum.CPU
-        };
+            return false;
+        }
 
-        product.SetSpecs(cpuSpec);
+        existing.Name = product.Name;
+        existing.Brand = product.Brand;
+        existing.Model = product.Model;
+        existing.Price = product.Price;
+        existing.Type = product.Type;
+        existing.SpecsJson = product.SpecsJson;
 
-        _db.Products.Add(product);
-        await _db.SaveChangesAsync(ct);
-        return product;
+        await _db.SaveChangesAsync();
+
+        return true;
     }
 
-    public async Task<Product?> GetProductAsync(int id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(int id)
     {
-        return await _db.Products.FindAsync(new object[] { id }, ct);
+        var product = await _db.Products
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (product is null)
+        {
+            return false;
+        }
+
+        _db.Products.Remove(product);
+
+        await _db.SaveChangesAsync();
+
+        return true;
     }
 }
