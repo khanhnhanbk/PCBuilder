@@ -14,11 +14,68 @@ public class ProductService : IProductService
         _db = db;
     }
 
-    public async Task<List<Product>> GetAllAsync()
+    public async Task<PaginatedResponse<ProductReadDto>> GetAllAsync(
+        string? search = null,
+        ProductTypeEnum? type = null,
+        decimal? minPrice = null,
+        decimal? maxPrice = null,
+        int pageNumber = 1,
+        int pageSize = 10)
     {
-        return await _db.Products
-            .AsNoTracking()
+        var query = _db.Products.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            query = query.Where(p =>
+                p.Name.ToLower().Contains(searchLower) ||
+                (p.Brand != null && p.Brand.ToLower().Contains(searchLower)) ||
+                (p.Model != null && p.Model.ToLower().Contains(searchLower)));
+        }
+
+        if (type.HasValue)
+        {
+            query = query.Where(p => p.Type == type.Value);
+        }
+
+        if (minPrice.HasValue)
+        {
+            query = query.Where(p => p.Price >= minPrice.Value);
+        }
+
+        if (maxPrice.HasValue)
+        {
+            query = query.Where(p => p.Price <= maxPrice.Value);
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var products = await query
+            .OrderByDescending(p => p.Id)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
+
+        var readDtos = products.Select(p => new ProductReadDto
+        {
+            Id = p.Id,
+            Name = p.Name,
+            Brand = p.Brand,
+            Model = p.Model,
+            Price = p.Price,
+            Type = p.Type,
+            Specs = !string.IsNullOrWhiteSpace(p.SpecsJson) && p.SpecsJson != "{}"
+                ? System.Text.Json.JsonSerializer.Deserialize<object>(p.SpecsJson)
+                : null
+        }).ToList();
+
+        return new PaginatedResponse<ProductReadDto>
+        {
+            Data = readDtos,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
     }
 
     public async Task<Product?> GetByIdAsync(int id)
