@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using PCBuilder.Application;
 using PCBuilder.Domain;
@@ -9,9 +10,12 @@ namespace PCBuilder.API.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IProductService _productService;
-        public ProductsController(IProductService productService)
+        private readonly IMapper _mapper;
+
+        public ProductsController(IProductService productService, IMapper mapper)
         {
             _productService = productService;
+            _mapper = mapper;
         }
 
         /// <summary>
@@ -37,8 +41,7 @@ namespace PCBuilder.API.Controllers
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-            var result = await _productService.GetAllAsync(search, type, minPrice, maxPrice, pageNumber, pageSize);
-            return Ok(result);
+            return Ok(await _productService.GetAllAsync(search, type, minPrice, maxPrice, pageNumber, pageSize));
         }
 
         /// <summary>
@@ -53,24 +56,9 @@ namespace PCBuilder.API.Controllers
         {
             var product = await _productService.GetByIdAsync(id);
             if (product == null)
-            {
                 return NotFound();
-            }
 
-            var readDto = new ProductReadDto
-            {
-                Id = product.Id,
-                Name = product.Name,
-                Brand = product.Brand,
-                Model = product.Model,
-                Price = product.Price,
-                Type = product.Type,
-                Specs = !string.IsNullOrWhiteSpace(product.SpecsJson) && product.SpecsJson != "{}"
-                    ? System.Text.Json.JsonSerializer.Deserialize<object>(product.SpecsJson)
-                    : null
-            };
-
-            return Ok(readDto);
+            return Ok(_mapper.Map<ProductReadDto>(product));
         }
 
         /// <summary>
@@ -83,32 +71,9 @@ namespace PCBuilder.API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Create(ProductCreateDto dto)
         {
-            var product = new Product
-            {
-                Name = dto.Name,
-                Brand = dto.Brand,
-                Model = dto.Model,
-                Price = dto.Price,
-                Type = dto.Type,
-                SpecsJson = dto.SpecsJson.GetRawText()
-            };
-
+            var product = _mapper.Map<Product>(dto);
             var created = await _productService.CreateAsync(product);
-
-            var readDto = new ProductReadDto
-            {
-                Id = created.Id,
-                Name = created.Name,
-                Brand = created.Brand,
-                Model = created.Model,
-                Price = created.Price,
-                Type = created.Type,
-                Specs = !string.IsNullOrWhiteSpace(created.SpecsJson) && created.SpecsJson != "{}"
-                    ? System.Text.Json.JsonSerializer.Deserialize<object>(created.SpecsJson)
-                    : null
-            };
-
-            return CreatedAtAction(nameof(Get), new { id = created.Id }, readDto);
+            return CreatedAtAction(nameof(Get), new { id = created.Id }, _mapper.Map<ProductReadDto>(created));
         }
 
         /// <summary>
@@ -125,19 +90,10 @@ namespace PCBuilder.API.Controllers
         {
             var product = await _productService.GetByIdAsync(id);
             if (product == null)
-            {
                 return NotFound();
-            }
 
-            product.Name = dto.Name;
-            product.Brand = dto.Brand;
-            product.Model = dto.Model;
-            product.Price = dto.Price;
-            product.Type = dto.Type;
-            product.SpecsJson = dto.SpecsJson.GetRawText();
-
+            _mapper.Map(dto, product);
             await _productService.UpdateAsync(product);
-
             return NoContent();
         }
 
@@ -150,14 +106,10 @@ namespace PCBuilder.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(int id)
         {
-            var product = await _productService.GetByIdAsync(id);
-            if (product == null)
-            {
+            if (await _productService.GetByIdAsync(id) == null)
                 return NotFound();
-            }
 
             await _productService.DeleteAsync(id);
-
             return NoContent();
         }
     }
