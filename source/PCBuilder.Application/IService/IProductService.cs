@@ -4,7 +4,13 @@ namespace PCBuilder.Application;
 
 public interface IProductService
 {
-    Task<List<Product>> GetAllAsync();
+    Task<PaginatedResponse<ProductReadDto>> GetAllAsync(
+        string? search = null,
+        ProductTypeEnum? type = null,
+        decimal? minPrice = null,
+        decimal? maxPrice = null,
+        int pageNumber = 1,
+        int pageSize = 10);
 
     Task<Product?> GetByIdAsync(int id);
 
