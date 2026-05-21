@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using PCBuilder.Application;
+using PCBuilder.API.Mappings;
 using PCBuilder.Infrastructure;
 using PCBuilder.Infrastructure.Data;
 using FluentValidation;
@@ -9,6 +11,8 @@ using FluentValidation.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<IProductService, ProductService>();
+
+builder.Services.AddAutoMapper(typeof(ProductMappingProfile));
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
